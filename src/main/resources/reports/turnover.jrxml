@@ -1,0 +1,224 @@
+<!-- Created with Jaspersoft Studio version 7.0.8.final using JasperReports Library version 7.0.8-6f896111  -->
+<jasperReport name="turnover" language="java" columnCount="1" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="4446c9d3-f56a-4339-8570-b7276c06348d">
+	<property name="com.jaspersoft.studio.data.defaultdataadapter" value="SolarPOS_DB"/>
+	<property name="com.jaspersoft.studio.data.sql.tables" value=""/>
+	<property name="com.jaspersoft.studio.unit." value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.pageHeight" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.pageWidth" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.topMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.bottomMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.leftMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.rightMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.columnWidth" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.columnSpacing" value="pixel"/>
+	<style name="SlowStyle" mode="Transparent" backcolor="#B30502" pattern="">
+		<conditionalStyle forecolor="#030101" backcolor="#D42D2A">
+			<conditionExpression><![CDATA[$F{status}.equals("SLOW-MOVING")]]></conditionExpression>
+		</conditionalStyle>
+	</style>
+	<parameter name="P_YEAR" class="java.lang.Integer">
+		<defaultValueExpression><![CDATA[2026]]></defaultValueExpression>
+	</parameter>
+	<parameter name="P_QUARTER" class="java.lang.Integer">
+		<defaultValueExpression><![CDATA[3]]></defaultValueExpression>
+	</parameter>
+	<query language="sql"><![CDATA[SELECT t.*,
+  CASE WHEN t.turnover_ratio < 0.25
+         OR (t.supplier_warranty_end <= DATE_ADD(CURDATE(), INTERVAL 6 MONTH) AND t.stock_qty > 0)
+       THEN 'SLOW-MOVING' ELSE 'OK' END AS status
+FROM (
+  SELECT h.item_code, h.brand, h.model, h.category,
+         h.stock_qty, h.unit_price,
+         h.stock_qty * h.unit_price AS capital_tied,
+         h.warranty_months,
+         COALESCE(SUM(d.qty),0) AS units_sold,
+         COUNT(DISTINCT c.customer_id) AS buyers,
+         COALESCE(ROUND(COALESCE(SUM(d.qty),0) /
+             NULLIF(h.stock_qty + COALESCE(SUM(d.qty),0),0), 2), 0) AS turnover_ratio,
+         DATEDIFF(CURDATE(), h.date_received) AS days_in_stock,
+         DATE_ADD(h.date_received, INTERVAL h.warranty_months MONTH) AS supplier_warranty_end
+  FROM inventory_hardware h
+  LEFT JOIN sale_details d ON d.item_id = h.item_id
+  LEFT JOIN sales_orders o ON o.order_id = d.order_id
+       AND YEAR(o.order_date) = $P{P_YEAR} AND QUARTER(o.order_date) = $P{P_QUARTER}
+  LEFT JOIN customers c ON c.customer_id = o.customer_id
+  GROUP BY h.item_id
+) t
+ORDER BY t.category, t.turnover_ratio ASC, t.capital_tied DESC]]></query>
+	<field name="item_code" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="item_code"/>
+		<property name="com.jaspersoft.studio.field.label" value="item_code"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="inventory_hardware"/>
+	</field>
+	<field name="brand" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="brand"/>
+		<property name="com.jaspersoft.studio.field.label" value="brand"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="inventory_hardware"/>
+	</field>
+	<field name="model" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="model"/>
+		<property name="com.jaspersoft.studio.field.label" value="model"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="inventory_hardware"/>
+	</field>
+	<field name="category" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="category"/>
+		<property name="com.jaspersoft.studio.field.label" value="category"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="inventory_hardware"/>
+	</field>
+	<field name="stock_qty" class="java.lang.Integer">
+		<property name="com.jaspersoft.studio.field.name" value="stock_qty"/>
+		<property name="com.jaspersoft.studio.field.label" value="stock_qty"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="inventory_hardware"/>
+	</field>
+	<field name="unit_price" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="unit_price"/>
+		<property name="com.jaspersoft.studio.field.label" value="unit_price"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="inventory_hardware"/>
+	</field>
+	<field name="capital_tied" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="capital_tied"/>
+		<property name="com.jaspersoft.studio.field.label" value="capital_tied"/>
+	</field>
+	<field name="warranty_months" class="java.lang.Integer">
+		<property name="com.jaspersoft.studio.field.name" value="warranty_months"/>
+		<property name="com.jaspersoft.studio.field.label" value="warranty_months"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="inventory_hardware"/>
+	</field>
+	<field name="units_sold" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="units_sold"/>
+		<property name="com.jaspersoft.studio.field.label" value="units_sold"/>
+	</field>
+	<field name="buyers" class="java.lang.Long">
+		<property name="com.jaspersoft.studio.field.name" value="buyers"/>
+		<property name="com.jaspersoft.studio.field.label" value="buyers"/>
+	</field>
+	<field name="turnover_ratio" class="java.math.BigDecimal">
+		<property name="com.jaspersoft.studio.field.name" value="turnover_ratio"/>
+		<property name="com.jaspersoft.studio.field.label" value="turnover_ratio"/>
+	</field>
+	<field name="days_in_stock" class="java.lang.Integer">
+		<property name="com.jaspersoft.studio.field.name" value="days_in_stock"/>
+		<property name="com.jaspersoft.studio.field.label" value="days_in_stock"/>
+	</field>
+	<field name="supplier_warranty_end" class="java.sql.Date">
+		<property name="com.jaspersoft.studio.field.name" value="supplier_warranty_end"/>
+		<property name="com.jaspersoft.studio.field.label" value="supplier_warranty_end"/>
+	</field>
+	<field name="status" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.name" value="status"/>
+		<property name="com.jaspersoft.studio.field.label" value="status"/>
+	</field>
+	<background splitType="Stretch"/>
+	<title height="80" splitType="Stretch">
+		<element kind="staticText" uuid="4bf6e077-7aba-43e1-965d-6447e48eedc5" x="151" y="0" width="489" height="30" fontSize="18.0" bold="true" hTextAlign="Center">
+			<text><![CDATA[Quarterly Hardware Turnover & Warranty Liability Report]]></text>
+		</element>
+		<element kind="textField" uuid="1a4de1f4-75a5-42d8-98da-ea87998367fa" x="140" y="50" width="120" height="30">
+    <expression><![CDATA["Year " + $P{P_YEAR}]]></expression>
+</element>
+<element kind="textField" uuid="8f839e7d-62ec-4a5c-9ed3-1035870c5dad" x="390" y="50" width="140" height="30">
+    <expression><![CDATA["Quarter " + $P{P_QUARTER}]]></expression>
+</element>
+	</title>
+	<columnHeader height="85" splitType="Stretch">
+		<element kind="staticText" uuid="3fe87c36-60c7-4580-9f96-9847d577614d" x="0" y="50" width="40" height="30">
+			<text><![CDATA[CODE]]></text>
+		</element>
+		<element kind="staticText" uuid="40a47f05-2bba-4931-a377-c20d2d177120" x="50" y="50" width="50" height="30">
+			<text><![CDATA[Brand]]></text>
+		</element>
+		<element kind="staticText" uuid="8f54f56f-5e67-474f-9b9a-a4476dbd6991" x="110" y="50" width="50" height="30">
+			<text><![CDATA[Model]]></text>
+		</element>
+		<element kind="staticText" uuid="9985eea9-dc3d-4ab0-8580-38583cc451d2" x="170" y="50" width="50" height="30">
+			<text><![CDATA[Category]]></text>
+		</element>
+		<element kind="staticText" uuid="72af4676-38da-4885-9d24-a73ff2240bdd" x="228" y="50" width="40" height="30">
+			<text><![CDATA[Stock]]></text>
+		</element>
+		<element kind="staticText" uuid="31ab51f8-4148-4cdd-bbb6-a8b08632e105" x="278" y="50" width="50" height="30">
+			<text><![CDATA[Unit Price]]></text>
+		</element>
+		<element kind="staticText" uuid="39455de7-2445-4583-b5db-97190ea8d074" x="339" y="50" width="70" height="30">
+			<text><![CDATA[Capital Tied]]></text>
+		</element>
+		<element kind="staticText" uuid="ffdde095-d913-4361-a561-bcbd9abe3cdc" x="421" y="50" width="70" height="30">
+			<text><![CDATA[Units Solds]]></text>
+		</element>
+		<element kind="staticText" uuid="f83cbef3-5834-4a57-aa01-30ca9f729c78" x="504" y="50" width="50" height="30">
+			<text><![CDATA[Turnover]]></text>
+		</element>
+		<element kind="staticText" uuid="afd18162-66b5-419a-8a8a-02e2b88316ca" x="568" y="50" width="70" height="30">
+			<text><![CDATA[Days in Stock]]></text>
+		</element>
+		<element kind="staticText" uuid="3c413bd0-25f1-4da3-a7ea-df03a9cf0c9f" x="651" y="50" width="70" height="30">
+			<text><![CDATA[Warranty End]]></text>
+		</element>
+		<element kind="staticText" uuid="e60a21e1-beae-498c-b483-d32bb042ae0f" x="730" y="50" width="70" height="30">
+			<text><![CDATA[Status]]></text>
+		</element>
+	</columnHeader>
+	<detail>
+		<band height="46" splitType="Stretch">
+			<element kind="textField" uuid="61e3b24e-08c3-45c1-a6f9-cd3e375a191a" x="0" y="0" width="40" height="30">
+				<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="25809c54-02d3-4227-9424-80e58b2e7e68"/>
+				<expression><![CDATA[$F{item_code}]]></expression>
+			</element>
+			<element kind="textField" uuid="1520c971-4330-45ca-9f3b-32ba6e8bf6d6" x="50" y="0" width="50" height="30">
+				<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="36a25fc1-273d-43c8-8b62-f5e0f9f6f6f6"/>
+				<expression><![CDATA[$F{brand}]]></expression>
+			</element>
+			<element kind="textField" uuid="84d2d7dc-27ea-4e2c-915f-b1f318822517" x="106" y="0" width="54" height="30">
+				<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="bb9d989c-a253-4718-bbad-3855fc4559f9"/>
+				<expression><![CDATA[$F{model}]]></expression>
+			</element>
+			<element kind="textField" uuid="b6819b53-60bf-4a45-8322-1684161f7d01" x="170" y="0" width="50" height="30">
+				<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="10cac8ff-12bd-4fb0-8d3e-076c878c4009"/>
+				<expression><![CDATA[$F{category}]]></expression>
+			</element>
+			<element kind="textField" uuid="02586975-ca8c-42db-9380-8b95867f9011" x="230" y="0" width="38" height="30">
+				<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="31f958f3-9db8-4ed3-8728-4da7939f476a"/>
+				<expression><![CDATA[$F{stock_qty}]]></expression>
+			</element>
+			<element kind="textField" uuid="381687a6-f50a-45e3-9d62-16016a863800" x="278" y="0" width="50" height="30">
+				<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="e390fc95-9e1a-44dd-9569-f24cc9bcf315"/>
+				<expression><![CDATA[$F{unit_price}]]></expression>
+			</element>
+			<element kind="textField" uuid="186ac470-8435-4598-afbd-9b6acf3cf277" x="340" y="0" width="69" height="30">
+				<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="13cdc359-c778-4c90-8808-2173cf75e791"/>
+				<expression><![CDATA[$F{capital_tied}]]></expression>
+			</element>
+			<element kind="textField" uuid="4c3d9fa1-37a5-47ce-a75e-a7111c29db2a" x="420" y="0" width="71" height="30">
+				<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="bda2ae0b-9631-4a06-be9f-a14ed8ea61cb"/>
+				<expression><![CDATA[$F{units_sold}]]></expression>
+			</element>
+			<element kind="textField" uuid="fac30230-e474-4c94-bb63-b6f45e1b7d66" x="504" y="0" width="50" height="30">
+				<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="6d043899-bb7d-446a-93d0-98e70649ddb2"/>
+				<expression><![CDATA[$F{turnover_ratio}]]></expression>
+			</element>
+			<element kind="textField" uuid="1a039a0b-b11e-42eb-8bb2-f5e57790c548" x="565" y="0" width="75" height="30">
+				<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="af042cee-b74d-4e51-b872-dc0dc079dd4e"/>
+				<expression><![CDATA[$F{days_in_stock}]]></expression>
+			</element>
+			<element kind="textField" uuid="c8cd0c58-0d2f-42a9-bf34-962ff8b32d10" x="651" y="0" width="70" height="30">
+				<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="519562d3-c859-4ae6-a7b8-0203adc608ac"/>
+				<expression><![CDATA[$F{supplier_warranty_end}]]></expression>
+			</element>
+			<element kind="textField" uuid="bbd13420-8c2b-4d28-b69e-aae2bcfbb737" x="730" y="0" width="70" height="30">
+				<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="6eb144e4-b73d-4dc3-8b54-94eef1435ef2"/>
+				<expression><![CDATA[$F{status}]]></expression>
+			</element>
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+		</band>
+	</detail>
+	<pageFooter height="25" splitType="Stretch">
+		<element kind="textField" uuid="f6c3611a-f7b1-4f0a-9c67-5affa815cc3a" x="278" y="3" width="100" height="18" hTextAlign="Right">
+			<expression><![CDATA["Page " + $V{PAGE_NUMBER}]]></expression>
+		</element>
+		<element kind="textField" uuid="9c2c9550-0588-48da-92ee-95044beac338" x="380" y="4" width="100" height="17" evaluationTime="Report" hTextAlign="Left">
+			<expression><![CDATA[" of " + $V{PAGE_NUMBER}]]></expression>
+		</element>
+		<property name="com.jaspersoft.studio.unit.height" value="px"/>
+	</pageFooter>
+	<summary height="42" splitType="Stretch"/>
+</jasperReport>
