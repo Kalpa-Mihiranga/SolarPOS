@@ -285,5 +285,4 @@ Choose a license for your project and add a `LICENSE` file. If you are unsure, t
 
 ## Author
 
-**Your Name**
 GitHub: Kalpa-Mihiranga
