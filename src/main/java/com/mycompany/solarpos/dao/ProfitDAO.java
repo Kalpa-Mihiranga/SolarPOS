@@ -7,8 +7,12 @@ import java.util.*;
 public class ProfitDAO {
 
     private Connection con() throws SQLException {
+    try {
         return DBConnection.getInstance().getConnection();
+    } catch (java.io.IOException e) {
+        throw new SQLException("Cannot load config.properties: " + e.getMessage(), e);
     }
+}
 
     /** Monthly P&L for the last N months. */
     public List<String[]> monthlyPL(int months) throws SQLException {

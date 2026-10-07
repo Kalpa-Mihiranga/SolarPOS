@@ -254,7 +254,7 @@ public class ReportPanel extends JPanel {
             return JasperFillManager.fillReport(
                     jr,
                     params,
-                    DBConnection.getInstance().getConnection());
+                   DBConnection.getInstance().getConnection()); // already inside try-catch Exception
         }
     }
 

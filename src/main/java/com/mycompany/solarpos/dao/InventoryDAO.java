@@ -15,8 +15,12 @@ public class InventoryDAO {
       + "cycle_life, unit_price, stock_qty, warranty_months, installer_warranty_fee, supplier_id, date_received";
 
     private Connection con() throws SQLException {
+    try {
         return DBConnection.getInstance().getConnection();
+    } catch (java.io.IOException e) {
+        throw new SQLException("Cannot load config.properties: " + e.getMessage(), e);
     }
+}
 
     public List<HardwareItem> findAll() throws SQLException {
         String sql = "SELECT * FROM inventory_hardware ORDER BY category, brand, model";

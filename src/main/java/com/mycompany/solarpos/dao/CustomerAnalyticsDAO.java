@@ -7,8 +7,12 @@ import java.util.*;
 public class CustomerAnalyticsDAO {
 
     private Connection con() throws SQLException {
+    try {
         return DBConnection.getInstance().getConnection();
+    } catch (java.io.IOException e) {
+        throw new SQLException("Cannot load config.properties: " + e.getMessage(), e);
     }
+}
 
     /** Top 10 customers by total spend. */
     public List<String[]> topSpenders() throws SQLException {

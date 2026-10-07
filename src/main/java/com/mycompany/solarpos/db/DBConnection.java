@@ -1,43 +1,227 @@
 package com.mycompany.solarpos.db;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
+import java.io.*;
+import java.net.URISyntaxException;
+import java.sql.*;
 import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-/** Singleton: one shared database connection for the whole application. */
+/**
+ * Singleton pattern: one shared database connection for the whole application.
+ * On first launch (empty password), the SetupDialog saves the password here.
+ */
 public class DBConnection {
+
+    private static final Logger LOG = Logger.getLogger(DBConnection.class.getName());
 
     private static DBConnection instance;
     private final Properties props = new Properties();
     private Connection connection;
 
-    private DBConnection() {
-        try (InputStream in = new FileInputStream("config.properties")) {
-            props.load(in);
-        } catch (IOException e) {
-            throw new IllegalStateException("Cannot read config.properties. Is it in the project folder?", e);
+    // ---------------------------------------------------------------- constructor
+
+    private DBConnection() throws IOException {
+        File configFile = findConfigFile();
+
+        if (!configFile.exists()) {
+            // Create a blank config.properties so the setup dialog can save into it
+            createBlankConfig(configFile);
+            LOG.info("[DB] Created blank config.properties at: "
+                    + configFile.getAbsolutePath());
         }
+
+        try (InputStream in = new FileInputStream(configFile)) {
+            props.load(in);
+        }
+
+        LOG.info("[DB] Config loaded from: " + configFile.getAbsolutePath());
     }
 
-    public static synchronized DBConnection getInstance() {
+    // ---------------------------------------------------------------- singleton
+
+    public static synchronized DBConnection getInstance() throws IOException {
         if (instance == null) {
             instance = new DBConnection();
         }
         return instance;
     }
 
-    /** Returns a live connection, reconnecting if it was closed or dropped. */
+    /**
+     * Resets the singleton so the next call to getInstance() reloads
+     * config.properties from disk. Called by SetupDialog after saving
+     * a new password.
+     */
+    public static synchronized void reset() {
+        if (instance != null && instance.connection != null) {
+            try {
+                instance.connection.close();
+            } catch (SQLException ex) {
+                LOG.log(Level.WARNING, "Could not close connection during reset", ex);
+            }
+        }
+        instance = null;
+        LOG.info("[DB] Singleton reset. Next call will reload config.");
+    }
+
+    // ---------------------------------------------------------------- connection
+
+    /**
+     * Returns a live connection, reconnecting automatically if the
+     * connection was closed or dropped (e.g. MySQL timeout).
+     */
     public synchronized Connection getConnection() throws SQLException {
         if (connection == null || connection.isClosed() || !connection.isValid(2)) {
-            connection = DriverManager.getConnection(
-                    props.getProperty("db.url"),
-                    props.getProperty("db.user"),
-                    props.getProperty("db.password"));
+            String url  = props.getProperty("db.url",      "").trim();
+            String user = props.getProperty("db.user",     "root").trim();
+            String pass = props.getProperty("db.password", "").trim();
+
+            if (url.isEmpty()) {
+                throw new SQLException(
+                        "db.url is not set in config.properties. "
+                      + "Run the application to open the setup screen.");
+            }
+
+            connection = DriverManager.getConnection(url, user, pass);
+            LOG.info("[DB] Connected to: " + connection.getCatalog());
         }
         return connection;
+    }
+
+    // ---------------------------------------------------------------- password helpers
+
+    /**
+     * Returns true when db.password is blank.
+     * The main method checks this to decide whether to show SetupDialog.
+     */
+    public boolean isPasswordEmpty() {
+        return props.getProperty("db.password", "").trim().isEmpty();
+    }
+
+    /**
+     * Saves a complete set of connection details to config.properties,
+     * then closes any existing connection so the next getConnection()
+     * uses the new settings.
+     *
+     * Called by SetupDialog after a successful test connection.
+     */
+    public void saveSettings(String host, String port, String database,
+                             String user, String password)
+            throws IOException, SQLException {
+
+        String url = "jdbc:mysql://" + host + ":" + port + "/" + database
+                   + "?useSSL=false&allowPublicKeyRetrieval=true"
+                   + "&serverTimezone=Asia/Colombo";
+
+        // Verify the settings actually work before saving
+        try (Connection test = DriverManager.getConnection(url, user, password)) {
+            LOG.info("[DB] Test connection successful: " + test.getCatalog());
+        }
+
+        // Save to disk
+        props.setProperty("db.url",      url);
+        props.setProperty("db.user",     user);
+        props.setProperty("db.password", password);
+
+        File configFile = findConfigFile();
+        try (OutputStream out = new FileOutputStream(configFile)) {
+            props.store(out,
+                    "Solar POS - database configuration\n"
+                  + "# Generated by the setup screen. Edit carefully.");
+        }
+        LOG.info("[DB] Settings saved to: " + configFile.getAbsolutePath());
+
+        // Close the old connection so next getConnection() uses new settings
+        if (connection != null && !connection.isClosed()) {
+            connection.close();
+            connection = null;
+        }
+    }
+
+    /**
+     * Convenience overload: saves only the password, keeping the existing
+     * url and user already in config.properties.
+     */
+    public void savePassword(String password) throws IOException, SQLException {
+        String url  = props.getProperty("db.url",  "").trim();
+        String user = props.getProperty("db.user", "root").trim();
+
+        // Parse host, port and db from the existing URL for the full save
+        // Default values used if parsing fails
+        String host = "localhost";
+        String port = "3306";
+        String db   = "solar_pos";
+        try {
+            // jdbc:mysql://HOST:PORT/DB?...
+            String withoutPrefix = url.replace("jdbc:mysql://", "");
+            String hostPort = withoutPrefix.split("/")[0];
+            db   = withoutPrefix.split("/")[1].split("\\?")[0];
+            host = hostPort.split(":")[0];
+            port = hostPort.split(":")[1];
+        } catch (Exception ignored) {
+            LOG.warning("[DB] Could not parse existing URL, using defaults.");
+        }
+
+        saveSettings(host, port, db, user, password);
+    }
+
+    // ---------------------------------------------------------------- config file location
+
+    /**
+     * Finds config.properties by checking three locations in priority order:
+     *
+     *  1. Same folder as the running JAR  → used when deployed
+     *  2. Current working directory        → used when run from NetBeans
+     *  3. One level up from working dir    → used when running from target/
+     *
+     * If none of the locations exist, returns a File pointing to the
+     * working directory so the setup dialog can create it there.
+     */
+    public static File findConfigFile() {
+        // Location 1: next to the JAR file (deployed)
+        try {
+            File jarDir = new File(
+                    DBConnection.class
+                            .getProtectionDomain()
+                            .getCodeSource()
+                            .getLocation()
+                            .toURI()).getParentFile();
+            File f = new File(jarDir, "config.properties");
+            if (f.exists()) {
+                return f;
+            }
+        } catch (URISyntaxException ignored) {}
+
+        // Location 2: current working directory (NetBeans run)
+        File f = new File("config.properties");
+        if (f.exists()) {
+            return f;
+        }
+
+        // Location 3: one level up (running from target/)
+        File up = new File("../config.properties");
+        if (up.exists()) {
+            return up;
+        }
+
+        // Default: working directory (setup dialog will create it here)
+        return new File("config.properties");
+    }
+
+    // ---------------------------------------------------------------- private helpers
+
+    private static void createBlankConfig(File file) throws IOException {
+        Properties blank = new Properties();
+        blank.setProperty("db.url",
+                "jdbc:mysql://localhost:3306/solar_pos"
+              + "?useSSL=false&allowPublicKeyRetrieval=true"
+              + "&serverTimezone=Asia/Colombo");
+        blank.setProperty("db.user",     "root");
+        blank.setProperty("db.password", "");
+        try (OutputStream out = new FileOutputStream(file)) {
+            blank.store(out,
+                    "Solar POS database configuration\n"
+                  + "# Fill in db.password or run the app to use the setup screen");
+        }
     }
 }

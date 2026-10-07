@@ -11,8 +11,12 @@ import java.util.List;
 public class CustomerDAO {
 
     private Connection con() throws SQLException {
+    try {
         return DBConnection.getInstance().getConnection();
+    } catch (java.io.IOException e) {
+        throw new SQLException("Cannot load config.properties: " + e.getMessage(), e);
     }
+}
 
     // ------------------------------------------------------------ customers
 

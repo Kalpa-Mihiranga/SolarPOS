@@ -7,8 +7,12 @@ import java.util.*;
 public class DashboardDAO {
 
     private Connection con() throws SQLException {
+    try {
         return DBConnection.getInstance().getConnection();
+    } catch (java.io.IOException e) {
+        throw new SQLException("Cannot load config.properties: " + e.getMessage(), e);
     }
+}
 
     public double totalKwThisMonth() throws SQLException {
         String sql = "SELECT COALESCE(SUM(total_kw),0) FROM sales_orders "

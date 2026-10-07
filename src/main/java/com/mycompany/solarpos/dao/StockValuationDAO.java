@@ -7,8 +7,12 @@ import java.util.*;
 public class StockValuationDAO {
 
     private Connection con() throws SQLException {
+    try {
         return DBConnection.getInstance().getConnection();
+    } catch (java.io.IOException e) {
+        throw new SQLException("Cannot load config.properties: " + e.getMessage(), e);
     }
+}
 
     /** Full stock valuation with slow-moving flag. */
     public List<String[]> fullValuation() throws SQLException {

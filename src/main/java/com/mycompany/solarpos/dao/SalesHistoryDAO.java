@@ -8,8 +8,12 @@ import java.util.List;
 public class SalesHistoryDAO {
 
     private Connection con() throws SQLException {
+    try {
         return DBConnection.getInstance().getConnection();
+    } catch (java.io.IOException e) {
+        throw new SQLException("Cannot load config.properties: " + e.getMessage(), e);
     }
+}
 
     /** All orders with customer and cashier name, filterable by date range. */
     public List<String[]> findOrders(String fromDate, String toDate,

@@ -9,8 +9,12 @@ import java.util.*;
 public class UserManagementDAO {
 
     private Connection con() throws SQLException {
+    try {
         return DBConnection.getInstance().getConnection();
+    } catch (java.io.IOException e) {
+        throw new SQLException("Cannot load config.properties: " + e.getMessage(), e);
     }
+}
 
     public List<String[]> findAll() throws SQLException {
         String sql =

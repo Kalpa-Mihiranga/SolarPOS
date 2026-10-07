@@ -8,8 +8,12 @@ import java.util.*;
 public class BalancePaymentDAO {
 
     private Connection con() throws SQLException {
+    try {
         return DBConnection.getInstance().getConnection();
+    } catch (java.io.IOException e) {
+        throw new SQLException("Cannot load config.properties: " + e.getMessage(), e);
     }
+}
 
     /** Orders that still have an outstanding balance. */
     public List<String[]> findOutstandingOrders(String customerSearch) throws SQLException {
